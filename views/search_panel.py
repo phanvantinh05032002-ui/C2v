@@ -1,4 +1,6 @@
-from pathlib import Path
+from __future__ import annotations
+
+import unicodedata
 
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -14,6 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from models.search_filter import SearchFilter
 from views.account_info import AccountInfoBar
 
 
@@ -38,10 +41,10 @@ class SearchPanel(QWidget):
         self.keyword_input = QLineEdit("2ch")
         self.country_combo = QComboBox()
         self.country_combo.setEditable(True)
-        countries = self._load_countries()
-        self.country_combo.addItems(countries)
-        if "Nhật Bản" in countries:
-            self.country_combo.setCurrentText("Nhật Bản")
+        self.country_combo.addItems(
+            ["", "JP", "US", "GB", "VN", "FR", "KR", "DE", "BR", "MX"]
+        )
+        self.country_combo.setCurrentText("JP")
 
         self.recent_videos_spin = self._build_spin_box(0, 9999, 8)
         self.max_results_spin = self._build_spin_box(1, 1000, 150)
@@ -76,6 +79,42 @@ class SearchPanel(QWidget):
         main_layout.addWidget(self.account_info)
         main_layout.addWidget(self._build_api_section())
         main_layout.addWidget(self._build_filter_section())
+
+    def get_api_keys(self) -> list[str]:
+        return [
+            line.strip()
+            for line in self.api_keys_edit.toPlainText().splitlines()
+            if line.strip()
+        ]
+
+    def set_api_keys(self, api_keys: str):
+        self.api_keys_edit.setPlainText(api_keys)
+
+    def to_search_filter(self) -> SearchFilter:
+        region_code = self._resolve_region_code(self.country_combo.currentText())
+        trending_region = self._resolve_region_code(self.trending_combo.currentText()) or "JP"
+
+        return SearchFilter(
+            keyword=self.keyword_input.text().strip(),
+            region_code=region_code,
+            published_days=self.published_days_spin.value(),
+            recent_videos_limit=self.recent_videos_spin.value(),
+            min_subscribers=self._parse_int(self.min_sub_input.text(), 0),
+            max_subscribers=self._parse_int(
+                self.max_sub_input.text(),
+                2_147_483_647,
+            ),
+            min_views=self._parse_int(self.min_views_input.text(), 0),
+            max_views=self._parse_int(
+                self.max_views_input.text(),
+                2_147_483_647,
+            ),
+            min_total_videos=self._parse_int(self.min_total_videos_input.text(), 0),
+            min_channel_age_days=self.channel_age_min_spin.value(),
+            max_channel_age_days=self.channel_age_max_spin.value(),
+            max_results=self.max_results_spin.value(),
+            trending_region_code=trending_region,
+        )
 
     def _build_api_section(self) -> QFrame:
         frame = QFrame()
@@ -236,13 +275,44 @@ class SearchPanel(QWidget):
         spin_box.setValue(value)
         return spin_box
 
-    def _load_countries(self):
-        country_path = Path(__file__).resolve().parent.parent / "data" / "country.txt"
+    def _resolve_region_code(self, value: str) -> str:
+        normalized = self._strip_accents(value.strip().upper())
+        aliases = {
+            "": "",
+            "GLOBAL": "",
+            "US": "US",
+            "USA": "US",
+            "HOA KY": "US",
+            "GB": "GB",
+            "UK": "GB",
+            "ANH": "GB",
+            "JP": "JP",
+            "NHAT BAN": "JP",
+            "VN": "VN",
+            "VIET NAM": "VN",
+            "FR": "FR",
+            "PHAP": "FR",
+            "KR": "KR",
+            "HAN QUOC": "KR",
+            "DE": "DE",
+            "DUC": "DE",
+            "BR": "BR",
+            "BRAZIL": "BR",
+            "MX": "MX",
+            "MEXICO": "MX",
+        }
+        return aliases.get(normalized, normalized if len(normalized) == 2 else "")
+
+    def _strip_accents(self, value: str) -> str:
+        normalized = unicodedata.normalize("NFD", value)
+        return "".join(
+            character
+            for character in normalized
+            if unicodedata.category(character) != "Mn"
+        ).replace("Đ", "D")
+
+    def _parse_int(self, value: str, default: int) -> int:
         try:
-            return [
-                country.strip()
-                for country in country_path.read_text(encoding="utf-8").splitlines()
-                if country.strip()
-            ]
-        except FileNotFoundError:
-            return []
+            return int(value.strip() or default)
+        except ValueError:
+            return default
