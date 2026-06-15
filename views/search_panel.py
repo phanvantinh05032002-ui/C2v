@@ -67,7 +67,7 @@ class SearchPanel(QWidget):
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(10)
+        main_layout.setSpacing(6)
 
         main_layout.addWidget(self.account_info)
         main_layout.addWidget(self._build_api_section())
@@ -78,8 +78,8 @@ class SearchPanel(QWidget):
         frame.setObjectName("panelCard")
 
         layout = QHBoxLayout(frame)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
         label = QLabel("API Keys (mỗi dòng 1 key):")
         label.setObjectName("sectionLabel")
@@ -95,12 +95,12 @@ class SearchPanel(QWidget):
         frame.setObjectName("panelCard")
 
         outer_layout = QVBoxLayout(frame)
-        outer_layout.setContentsMargins(12, 12, 12, 12)
-        outer_layout.setSpacing(12)
+        outer_layout.setContentsMargins(8, 8, 8, 8)
+        outer_layout.setSpacing(8)
 
         grid = QGridLayout()
-        grid.setHorizontalSpacing(14)
-        grid.setVerticalSpacing(10)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(6)
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(3, 1)
         grid.setColumnStretch(5, 1)
@@ -202,14 +202,14 @@ class SearchPanel(QWidget):
         )
 
         trending_row = QHBoxLayout()
-        trending_row.setSpacing(8)
+        trending_row.setSpacing(6)
         trending_row.addWidget(QLabel("TOP TRENDING (theo quốc gia)"))
         trending_row.addWidget(self.help_btn)
         trending_row.addWidget(self.trending_combo)
         trending_row.addStretch(1)
 
         action_row = QHBoxLayout()
-        action_row.setSpacing(10)
+        action_row.setSpacing(8)
         action_row.addWidget(self.start_btn)
         action_row.addWidget(self.stop_btn)
         action_row.addStretch(1)
