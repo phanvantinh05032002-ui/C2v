@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PyQt6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -36,8 +38,10 @@ class SearchPanel(QWidget):
         self.keyword_input = QLineEdit("2ch")
         self.country_combo = QComboBox()
         self.country_combo.setEditable(True)
-        self.country_combo.addItems(["JP", "US", "GB", "VN", ""])
-        self.country_combo.setCurrentText("JP")
+        countries = self._load_countries()
+        self.country_combo.addItems(countries)
+        if "Nhật Bản" in countries:
+            self.country_combo.setCurrentText("Nhật Bản")
 
         self.recent_videos_spin = self._build_spin_box(0, 9999, 8)
         self.max_results_spin = self._build_spin_box(1, 1000, 150)
@@ -231,3 +235,14 @@ class SearchPanel(QWidget):
         spin_box.setRange(minimum, maximum)
         spin_box.setValue(value)
         return spin_box
+
+    def _load_countries(self):
+        country_path = Path(__file__).resolve().parent.parent / "data" / "country.txt"
+        try:
+            return [
+                country.strip()
+                for country in country_path.read_text(encoding="utf-8").splitlines()
+                if country.strip()
+            ]
+        except FileNotFoundError:
+            return []
