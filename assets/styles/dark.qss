@@ -73,6 +73,25 @@ QLabel#placeholderLabel {
     font-size: 14px;
 }
 
+QDialog#filterDialog {
+    background: #1b1b1b;
+    border: 1px solid #35312b;
+}
+
+QLabel#dialogTitle {
+    color: #f4ede1;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+QLabel#dialogSectionTitle {
+    color: #e6dfd2;
+    font-size: 13px;
+    font-weight: 700;
+    border-bottom: 1px solid #45413a;
+    padding-bottom: 6px;
+}
+
 QLineEdit,
 QPlainTextEdit,
 QTextEdit,
@@ -157,6 +176,38 @@ QPushButton#helpButton {
     border: 1px solid #8a2d2d;
     padding: 4px 0;
     min-width: 0;
+}
+
+QPushButton#dialogCloseButton {
+    background: transparent;
+    border: none;
+    color: #f4ede1;
+    font-size: 18px;
+    padding: 2px 8px;
+}
+
+QPushButton#dialogCloseButton:hover {
+    background: #2b2b2b;
+}
+
+QPushButton#dialogOptionButton {
+    background: transparent;
+    border: none;
+    color: #bfb7aa;
+    text-align: left;
+    padding: 6px 0;
+    border-radius: 0;
+}
+
+QPushButton#dialogOptionButton:hover {
+    color: #f4ede1;
+    background: transparent;
+}
+
+QPushButton#dialogOptionButton:checked {
+    color: #f4ede1;
+    font-weight: 700;
+    background: transparent;
 }
 
 QHeaderView::section {
