@@ -1,4 +1,3 @@
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -10,6 +9,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from views.analysis_panel import AnalysisPanel
 from views.log_panel import LogPanel
 from views.search_panel import SearchPanel
 from views.table_view import ChannelTable
@@ -79,7 +79,8 @@ class MainWindow(QMainWindow):
 
     def _build_analysis_tab(self):
         layout = QVBoxLayout(self.analysis_tab)
-        placeholder = QLabel("Màn hình phân tích kênh sẽ được bổ sung tại đây.")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setObjectName("placeholderLabel")
-        layout.addWidget(placeholder)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        self.analysis_panel = AnalysisPanel()
+        layout.addWidget(self.analysis_panel)

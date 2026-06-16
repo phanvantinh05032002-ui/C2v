@@ -3,6 +3,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication
 
+from controllers.analysis_controller import AnalysisController
 from controllers.search_controller import SearchController
 from views.main_window import MainWindow
 
@@ -17,8 +18,10 @@ app.setStyle("Fusion")
 app.setStyleSheet(load_stylesheet())
 
 window = MainWindow()
-controller = SearchController(window)
-window.search_controller = controller
+search_controller = SearchController(window)
+analysis_controller = AnalysisController(window)
+window.search_controller = search_controller
+window.analysis_controller = analysis_controller
 window.show()
 
 sys.exit(app.exec())

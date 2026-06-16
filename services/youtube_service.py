@@ -32,7 +32,11 @@ class YoutubeService:
         if search_filter.keyword.strip():
             channel_ids = self._search_channel_ids(search_filter, log, can_continue)
         else:
-            channel_ids = self._search_trending_channel_ids(search_filter, log, can_continue)
+            channel_ids = self._search_trending_channel_ids(
+                search_filter,
+                log,
+                can_continue,
+            )
 
         if not channel_ids:
             return []
@@ -53,6 +57,48 @@ class YoutubeService:
             log(f"Đã phân tích {index}/{len(channels)} kênh...")
 
         return results
+
+    def analyze_channel(self, channel_id: str, recent_video_limit: int = 10) -> dict:
+        channel_response = self._execute(
+            lambda youtube: youtube.channels().list(
+                part="contentDetails,snippet,statistics",
+                id=channel_id,
+            )
+        )
+        items = channel_response.get("items", [])
+        if not items:
+            raise ValueError("Không tìm thấy channel với ID đã nhập.")
+
+        channel_data = items[0]
+        snippet = channel_data.get("snippet", {})
+        statistics = channel_data.get("statistics", {})
+        uploads_playlist_id = (
+            channel_data.get("contentDetails", {})
+            .get("relatedPlaylists", {})
+            .get("uploads", "")
+        )
+        if not uploads_playlist_id:
+            raise ValueError("Không lấy được uploads playlist của kênh.")
+
+        videos = self._fetch_playlist_videos(uploads_playlist_id, recent_video_limit)
+        total_views = int(statistics.get("viewCount", 0) or 0)
+        total_videos = int(statistics.get("videoCount", 0) or 0)
+        subscribers = int(statistics.get("subscriberCount", 0) or 0)
+        published_at = self._parse_datetime(snippet.get("publishedAt", ""))
+        age_days = max((datetime.now(timezone.utc) - published_at).days, 1)
+
+        return {
+            "channel_id": channel_id,
+            "title": snippet.get("title", ""),
+            "created_at": published_at.date().isoformat(),
+            "age_days": age_days,
+            "subscribers": subscribers,
+            "total_views": total_views,
+            "total_videos": total_videos,
+            "average_views": total_views / total_videos if total_videos else 0,
+            "thumbnail_url": self._get_thumbnail_url(snippet.get("thumbnails", {})),
+            "videos": videos,
+        }
 
     def _build_client(self):
         return build(
@@ -305,6 +351,53 @@ class YoutubeService:
 
         return video_items
 
+    def _fetch_playlist_videos(self, playlist_id: str, limit: int) -> list[dict]:
+        response = self._execute(
+            lambda youtube: youtube.playlistItems().list(
+                part="snippet,contentDetails",
+                playlistId=playlist_id,
+                maxResults=min(limit, 50),
+            )
+        )
+
+        items = response.get("items", [])[:limit]
+        video_ids = [
+            item.get("contentDetails", {}).get("videoId")
+            for item in items
+            if item.get("contentDetails", {}).get("videoId")
+        ]
+        video_detail_map = self._fetch_video_detail_statistics(video_ids)
+
+        videos = []
+        for item in items:
+            snippet = item.get("snippet", {})
+            video_id = item.get("contentDetails", {}).get("videoId")
+            if not video_id:
+                continue
+            detail = video_detail_map.get(video_id, {})
+            statistics = detail.get("statistics", {})
+            content_details = detail.get("contentDetails", {})
+            duration_seconds = self._parse_duration_to_seconds(
+                content_details.get("duration", "")
+            )
+            videos.append(
+                {
+                    "video_id": video_id,
+                    "title": snippet.get("title", ""),
+                    "published_at": self._parse_datetime(
+                        snippet.get("publishedAt", "")
+                    ).date().isoformat(),
+                    "duration_seconds": duration_seconds,
+                    "duration_text": self._format_duration(duration_seconds),
+                    "video_type": self._classify_video_type(duration_seconds),
+                    "view_count": int(statistics.get("viewCount", 0) or 0),
+                    "comment_count": int(statistics.get("commentCount", 0) or 0),
+                    "url": f"https://www.youtube.com/watch?v={video_id}",
+                }
+            )
+
+        return videos
+
     def _fetch_video_statistics(self, video_ids: list[str]) -> dict[str, int]:
         if not video_ids:
             return {}
@@ -326,6 +419,74 @@ class YoutubeService:
             )
 
         return statistics_map
+
+    def _fetch_video_detail_statistics(self, video_ids: list[str]) -> dict[str, dict]:
+        if not video_ids:
+            return {}
+
+        response = self._execute(
+            lambda youtube: youtube.videos().list(
+                part="statistics,contentDetails",
+                id=",".join(video_ids),
+            )
+        )
+
+        result: dict[str, dict] = {}
+        for item in response.get("items", []):
+            video_id = item.get("id")
+            if not video_id:
+                continue
+            result[video_id] = {
+                "statistics": item.get("statistics", {}),
+                "contentDetails": item.get("contentDetails", {}),
+            }
+        return result
+
+    def _parse_duration_to_seconds(self, duration: str) -> int:
+        if not duration:
+            return 0
+
+        hours = 0
+        minutes = 0
+        seconds = 0
+        current_number = ""
+
+        for character in duration:
+            if character.isdigit():
+                current_number += character
+                continue
+
+            if character in ("P", "T"):
+                continue
+
+            if not current_number:
+                continue
+
+            value = int(current_number)
+            current_number = ""
+
+            if character == "H":
+                hours = value
+            elif character == "M":
+                minutes = value
+            elif character == "S":
+                seconds = value
+
+        return (hours * 3600) + (minutes * 60) + seconds
+
+    def _format_duration(self, duration_seconds: int) -> str:
+        hours = duration_seconds // 3600
+        minutes = (duration_seconds % 3600) // 60
+        seconds = duration_seconds % 60
+
+        if hours > 0:
+            return f"{hours}:{minutes:02d}:{seconds:02d}"
+        return f"{minutes}:{seconds:02d}"
+
+    def _classify_video_type(self, duration_seconds: int) -> str:
+        if duration_seconds <= 180:
+            return "Shorts candidate"
+        return "Video dài"
 
     def _passes_filters(self, channel: Channel, search_filter: SearchFilter) -> bool:
         if channel.subscribers < search_filter.min_subscribers:
